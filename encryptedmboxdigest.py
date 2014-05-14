@@ -17,8 +17,7 @@ import time
 from email.mime.text import MIMEText
 from string import Template
 
-# TODO:
-# use real digest format
+# TODO: use real digest format
 # http://code.activestate.com/recipes/52243-sending-multipart-mime-email-with-smtplib-and-mime/
 
 
@@ -46,10 +45,7 @@ def getBodyFromMail(msg):
     return body
 
 
-def getKeyId(key):
-    gpg = gnupg.GPG()
-    gpg.encoding = 'utf-8'
-
+def getKeyId(gpg, key):
     for item in gpg.list_keys():
         if (
             re.search(re.escape(key), ' '.join(item['uids']), re.IGNORECASE) or
@@ -85,9 +81,7 @@ def createDigestMail(mails):
     return digestMail
 
 
-def encryptDigestMail(digestMail, keyId):
-    gpg = gnupg.GPG()
-    gpg.encoding = 'utf-8'
+def encryptDigestMail(digestMail, gpg, keyId):
     return str(gpg.encrypt(digestMail, keyId))
 
 
@@ -106,7 +100,7 @@ def sendDigest(header, encryptedDigest):
         return False
 
 
-def run(mbox, recipient, keyId):
+def run(mbox, recipient, gpg, keyId):
 
     mails = extractMailsFromMbox(mbox)
     if not mails:
@@ -116,7 +110,7 @@ def run(mbox, recipient, keyId):
                   'Subject': 'email digest',
                   'To': recipient}
         digestMail = createDigestMail(mails)
-        encryptedDigest = encryptDigestMail(digestMail, keyId)
+        encryptedDigest = encryptDigestMail(digestMail, gpg, keyId)
         if sendDigest(header, encryptedDigest):
             os.remove(mbox)
             open(mbox, 'a').close()
@@ -130,8 +124,10 @@ if __name__ == '__main__':
         description='Send encrypted email digest from local mbox')
     p.add_argument('mbox', help='path to mbox')
     p.add_argument('email', help='email address of recipient')
+    p.add_argument('-g', '--gpghome',
+                   help='path to gpg home directory [default: ~/.gnupg]')
     p.add_argument('-k', '--key',
-                   help='public key [default: use key of recipient]')
+                   help='public key id [default: use key of recipient]')
 
     args = vars(p.parse_args())
 
@@ -141,13 +137,23 @@ if __name__ == '__main__':
     if not re.match(r"[^@]+@[^@]+\.[^@]+", args['email'], re.IGNORECASE):
         print("Error: " + args['email'] + " is not a valid email address")
         sys.exit(-1)
+    if args['gpghome']:
+        gpghome = args['gpghome']
+    else:
+        gpghome = os.path.join(os.getenv('HOME'), '.gnupg')
+    if not os.path.isdir(gpghome):
+        print("Error: " + gpghome + " does not exist")
+        sys.exit(-1)
+
+    gpg = gnupg.GPG(gnupghome=gpghome)
+    gpg.encoding = 'utf-8'
 
     key = args['key'] if args['key'] else args['email']
-    keyId = getKeyId(key)
+    keyId = getKeyId(gpg, key)
     if not keyId:
         print("Error: couldn\'t find public key for " + key)
         sys.exit(-1)
 
-    run(args['mbox'], args['email'], keyId)
+    run(args['mbox'], args['email'], gpg, keyId)
 
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
