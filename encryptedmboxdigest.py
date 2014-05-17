@@ -113,7 +113,6 @@ def run(mbox, recipient, gpg, keyId):
         encryptedDigest = encryptDigestMail(digestMail, gpg, keyId)
         if sendDigest(header, encryptedDigest):
             os.remove(mbox)
-            open(mbox, 'a').close()
         else:
             print("Error: could not send email")
             sys.exit(-1)
