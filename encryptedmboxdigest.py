@@ -115,7 +115,7 @@ def run(mbox, recipient, gpg, keyId):
             os.remove(mbox)
         else:
             print("Error: could not send email")
-            sys.exit(-1)
+            sys.exit(5)
 
 
 if __name__ == '__main__':
@@ -132,17 +132,17 @@ if __name__ == '__main__':
 
     if not os.path.isfile(args['mbox']):
         print("Error: " + args['mbox'] + " does not exist or is not a file")
-        sys.exit(-1)
+        sys.exit(1)
     if not re.match(r"[^@]+@[^@]+\.[^@]+", args['email'], re.IGNORECASE):
         print("Error: " + args['email'] + " is not a valid email address")
-        sys.exit(-1)
+        sys.exit(2)
     if args['gpghome']:
         gpghome = args['gpghome']
     else:
         gpghome = os.path.join(os.getenv('HOME'), '.gnupg')
     if not os.path.isdir(gpghome):
         print("Error: " + gpghome + " does not exist")
-        sys.exit(-1)
+        sys.exit(3)
 
     gpg = gnupg.GPG(gnupghome=gpghome)
     gpg.encoding = 'utf-8'
@@ -151,8 +151,9 @@ if __name__ == '__main__':
     keyId = getKeyId(gpg, key)
     if not keyId:
         print("Error: couldn\'t find public key for " + key)
-        sys.exit(-1)
+        sys.exit(4)
 
     run(args['mbox'], args['email'], gpg, keyId)
+    sys.exit(0)
 
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
